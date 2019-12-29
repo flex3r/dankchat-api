@@ -39,7 +39,16 @@ val cache = Caffeine.newBuilder()
 
 val client = HttpClient {
     install(UserAgent) {
-        agent = "dankchat-api/1.0.0"
+        agent = "dankchat-api/1.0"
+    }
+}
+
+suspend fun getSet(id: String): String? {
+    return try {
+        client.get("https://api.twitchemotes.com/api/v4/sets?id=$id")
+    } catch (t: Throwable) {
+        logger.error("Twitchemotes request failed", t)
+        null
     }
 }
 
@@ -73,13 +82,4 @@ fun main() {
     }
 
     server.start(wait = true)
-}
-
-suspend fun getSet(id: String): String? {
-    return try {
-        client.get("https://api.twitchemotes.com/api/v4/sets?id=$id")
-    } catch (t: Throwable) {
-        logger.error("Twitchemotes request failed", t)
-        null
-    }
 }
