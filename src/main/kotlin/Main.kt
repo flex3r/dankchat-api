@@ -63,7 +63,7 @@ fun main() {
         install(DropwizardMetrics) {
             Slf4jReporter.forRegistry(registry)
                 .outputTo(log)
-                .convertRatesTo(TimeUnit.SECONDS)
+                .convertRatesTo(TimeUnit.MINUTES)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
                 .build()
                 .start(60, TimeUnit.SECONDS)
