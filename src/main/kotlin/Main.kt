@@ -67,12 +67,8 @@ fun main() {
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
                 .build()
                 .start(60, TimeUnit.SECONDS)
-        }.registry.apply {
-            remove("jvm.garbage")
-            remove("jvm.memory")
-            remove("jvm.threads")
-            remove("jvm.files")
-            remove("jvm.attributes")
+        }.registry.removeMatching { name, _ ->
+            name.startsWith("jvm")
         }
         routing {
             get("/") {
