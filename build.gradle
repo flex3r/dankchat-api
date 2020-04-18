@@ -6,13 +6,7 @@ plugins {
 
 group 'com.flxrs'
 version '1.0-SNAPSHOT'
-mainClassName = 'io.ktor.server.netty.EngineMain'
-
-shadowJar {
-    manifest {
-        attributes 'Main-Class': mainClassName
-    }
-}
+mainClassName = 'MainKt'
 
 repositories {
     mavenCentral()
