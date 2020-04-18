@@ -1,12 +1,15 @@
+import com.codahale.metrics.Slf4jReporter
 import com.github.benmanes.caffeine.cache.Caffeine
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.application.log
 import io.ktor.client.HttpClient
 import io.ktor.client.features.UserAgent
 import io.ktor.client.request.get
 import io.ktor.features.CallLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.metrics.dropwizard.DropwizardMetrics
 import io.ktor.request.userAgent
 import io.ktor.response.respond
 import io.ktor.response.respondText
@@ -55,7 +58,15 @@ suspend fun getSet(id: String): String? {
 fun main() {
     val server = embeddedServer(Netty, port = 8080) {
         install(CallLogging) {
-            level = Level.INFO
+            level = Level.ERROR
+        }
+        install(DropwizardMetrics) {
+            Slf4jReporter.forRegistry(registry)
+                .outputTo(log)
+                .convertRatesTo(TimeUnit.SECONDS)
+                .convertDurationsTo(TimeUnit.MILLISECONDS)
+                .build()
+                .start(60, TimeUnit.SECONDS)
         }
         routing {
             get("/") {
