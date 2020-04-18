@@ -61,19 +61,18 @@ fun main() {
             level = Level.INFO
         }
         install(DropwizardMetrics) {
-            with(registry) {
-                remove("jvm.garbage")
-                remove("jvm.memory")
-                remove("jvm.threads")
-                remove("jvm.files")
-                remove("jvm.attributes")
-            }
             Slf4jReporter.forRegistry(registry)
                 .outputTo(log)
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
                 .build()
                 .start(60, TimeUnit.SECONDS)
+        }.registry.apply {
+            remove("jvm.garbage")
+            remove("jvm.memory")
+            remove("jvm.threads")
+            remove("jvm.files")
+            remove("jvm.attributes")
         }
         routing {
             get("/") {
