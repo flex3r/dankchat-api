@@ -58,9 +58,16 @@ suspend fun getSet(id: String): String? {
 fun main() {
     val server = embeddedServer(Netty, port = 8080) {
         install(CallLogging) {
-            level = Level.ERROR
+            level = Level.INFO
         }
         install(DropwizardMetrics) {
+            with(registry) {
+                remove("jvm.garbage")
+                remove("jvm.memory")
+                remove("jvm.threads")
+                remove("jvm.files")
+                remove("jvm.attributes")
+            }
             Slf4jReporter.forRegistry(registry)
                 .outputTo(log)
                 .convertRatesTo(TimeUnit.SECONDS)
