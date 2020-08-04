@@ -10,7 +10,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.features.UserAgent
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.json.serializer.KotlinxSerializer
-import io.ktor.client.request.get
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.http.ContentType
@@ -37,6 +36,7 @@ import kotlinx.serialization.json.JsonConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import utils.getOrNull
 import java.util.concurrent.TimeUnit
 
 const val IVR_EMOTE_SET_URL = "https://api.ivr.fi/twitch/emoteset/"
@@ -68,15 +68,6 @@ val client = HttpClient {
                 )
             )
         )
-    }
-}
-
-suspend inline fun <reified T> HttpClient.getOrNull(url: String): T? {
-    return try {
-        client.get<T>(url)
-    } catch (t: Throwable) {
-        logger.error(t.message)
-        null
     }
 }
 
