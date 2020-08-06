@@ -48,9 +48,7 @@ val cache = Caffeine.newBuilder()
     .buildAsync<String, EmoteSetDto> { key, executor ->
         val innerContext = Job() + executor.asCoroutineDispatcher()
         CoroutineScope(innerContext).async {
-            val set = getSet(key)
-            logger.info("Storing $key")
-            set
+            getSet(key).also { logger.info("Storing $key") }
         }.asCompletableFuture()
     }
 
@@ -107,17 +105,20 @@ fun Application.main() {
 
         get("/set/{id}") {
             val id = call.parameters["id"]
-            if (id == null || id.isBlank()) {
-                logger.warn("Caller: ${call.request.userAgent()} ID parameter null")
-                call.respond(HttpStatusCode.BadRequest, "Invalid set id")
-            } else {
-                val set = cache.get(id).await()
-                if (set != null) {
-                    call.respond(listOf(set))
-                    logger.info("Serving set $id")
-                } else {
-                    logger.error("Cache returned null on set $id")
-                    call.respond(HttpStatusCode.NotFound)
+            when {
+                id.isNullOrBlank() -> {
+                    logger.warn("Caller: ${call.request.userAgent()} ID parameter null")
+                    call.respond(HttpStatusCode.BadRequest, "Invalid set id")
+                }
+                else -> {
+                    val set = cache.get(id).await()
+                    if (set != null) {
+                        logger.info("Serving set $id")
+                        call.respond(listOf(set))
+                    } else {
+                        logger.warn("Cache returned null on set $id")
+                        call.respond(HttpStatusCode.NotFound)
+                    }
                 }
             }
         }
