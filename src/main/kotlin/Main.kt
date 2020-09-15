@@ -84,7 +84,7 @@ fun getContributors() = CoroutineScope(pollDispatcher).launch {
             val lines = file.readLines()
             contributors.clear()
             contributors.addAll(lines)
-            logger.debug(contributors.toString())
+            logger.debug("Detected contributor list change: $contributors")
         }
 }
 
