@@ -3,43 +3,35 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import db.Database
 import db.User
 import dto.*
-import io.ktor.application.Application
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.application.log
-import io.ktor.client.HttpClient
-import io.ktor.client.features.UserAgent
+import io.ktor.application.*
+import io.ktor.client.*
+import io.ktor.client.features.*
 import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.features.json.serializer.KotlinxSerializer
-import io.ktor.client.request.accept
-import io.ktor.client.request.header
-import io.ktor.client.request.parameter
-import io.ktor.features.CallLogging
-import io.ktor.features.ContentNegotiation
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.metrics.dropwizard.DropwizardMetrics
-import io.ktor.request.userAgent
-import io.ktor.response.respond
-import io.ktor.response.respondText
-import io.ktor.routing.get
-import io.ktor.routing.routing
-import io.ktor.serialization.json
-import io.ktor.server.engine.commandLineEnvironment
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
+import io.ktor.client.features.json.serializer.*
+import io.ktor.client.request.*
+import io.ktor.features.*
+import io.ktor.http.*
+import io.ktor.metrics.dropwizard.*
+import io.ktor.request.*
+import io.ktor.response.*
+import io.ktor.routing.*
+import io.ktor.serialization.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.future.await
-import kotlinx.serialization.UnstableDefault
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonConfiguration
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import utils.asWatchFlow
 import utils.getOrNull
 import utils.timer
+import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -57,24 +49,17 @@ val emoteSetCache = Caffeine.newBuilder()
             getSet(key).also { logger.info("Storing $key") }
         }.asCompletableFuture()
     }
+val contributors = mutableListOf<String>()
 
 val SE_TOKEN: String? = System.getenv("SE_TOKEN")
 val pollDispatcher = Executors.newFixedThreadPool(1).asCoroutineDispatcher()
 
-@OptIn(UnstableDefault::class)
 val client = HttpClient {
     install(UserAgent) {
         agent = "dankchat-api/1.2"
     }
     install(JsonFeature) {
-        serializer = KotlinxSerializer(
-            Json(
-                JsonConfiguration(
-                    useArrayPolymorphism = true,
-                    ignoreUnknownKeys = true
-                )
-            )
-        )
+        serializer = KotlinxSerializer(json = Json { ignoreUnknownKeys = true })
     }
 }
 
@@ -87,6 +72,20 @@ suspend fun getSet(id: String): EmoteSetDto? {
             tier = tier?.toIntOrNull() ?: 1
         )
     } ?: client.getOrNull<List<EmoteSetDto>>("$TWITCH_EMOTES_EMOTE_SET_URL$id")?.firstOrNull() ?: EmoteSetDto(id)
+}
+
+fun getContributors() = CoroutineScope(pollDispatcher).launch {
+    val contributorsFile = File("/opt/dankchat-api/contributors.txt")
+    if (!contributorsFile.exists()) return@launch
+
+    contributorsFile.asWatchFlow()
+        .catch { logger.error("FileWatcher returned an error: ", it) }
+        .collectLatest { file ->
+            val lines = file.readLines()
+            contributors.clear()
+            contributors.addAll(lines)
+            logger.debug(contributors.toString())
+        }
 }
 
 fun pollDonations() = CoroutineScope(pollDispatcher).launch {
@@ -123,7 +122,13 @@ suspend fun getNewDonations(): List<Triple<String, String, String>> {
     }
     return donations.distinctBy { it.donation.user.channel }
         .filter { donation -> savedIds.none { donation.donation.user.channel == it } }
-        .map { Triple(it.donation.user.channel, it.donation.user.username, getTwitchId(it.donation.user.channel) ?: "") }
+        .map {
+            Triple(
+                it.donation.user.channel,
+                it.donation.user.username,
+                getTwitchId(it.donation.user.channel) ?: ""
+            )
+        }
 }
 
 suspend fun getDonationsWithOffset(offset: Int = 0): DonationsDto? {
@@ -144,7 +149,8 @@ suspend fun getTwitchId(channelId: String): String? {
 
 
 fun getDefaultBadges(): List<BadgeDto> = listOf(
-    BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", listOf("73697410"))
+    BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", listOf("73697410")),
+    BadgeDto("DankChat Contributor", "https://flxrs.com/dankchat/badges/contributor.png", contributors)
 )
 
 fun getSupporters(): BadgeDto {
@@ -174,6 +180,7 @@ fun Application.main() {
 
     Database.init()
     pollDonations()
+    getContributors()
 
     routing {
         get("/") {
