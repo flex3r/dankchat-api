@@ -50,6 +50,7 @@ val emoteSetCache = Caffeine.newBuilder()
         }.asCompletableFuture()
     }
 val contributors = mutableListOf<String>()
+val top = mutableListOf<String>()
 
 val SE_TOKEN: String? = System.getenv("SE_TOKEN")
 val pollDispatcher = Executors.newFixedThreadPool(1).asCoroutineDispatcher()
