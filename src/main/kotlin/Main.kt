@@ -88,6 +88,20 @@ fun getContributors() = CoroutineScope(pollDispatcher).launch {
         }
 }
 
+fun getTop() = CoroutineScope(pollDispatcher).launch {
+    val topFile = File("/opt/dankchat-api/top.txt")
+    if (!topFile.exists()) return@launch
+
+    topFile.asWatchFlow()
+        .catch { logger.error("FileWatcher returned an error: ", it) }
+        .collectLatest { file ->
+            val lines = file.readLines()
+            top.clear()
+            top.addAll(lines)
+            logger.debug("Detected top list change: $top")
+        }
+}
+
 fun pollDonations() = CoroutineScope(pollDispatcher).launch {
     timer(5 * 60 * 1000) {
         val newDonations = getNewDonations()
@@ -150,6 +164,7 @@ suspend fun getTwitchId(channelId: String): String? {
 
 fun getDefaultBadges(): List<BadgeDto> = listOf(
     BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", listOf("73697410")),
+    BadgeDto("DankChat Top Supporter", "https://flxrs.com/dankchat/badges/top.png", top),
     BadgeDto("DankChat Contributor", "https://flxrs.com/dankchat/badges/contributor.png", contributors)
 )
 
@@ -181,6 +196,7 @@ fun Application.main() {
     Database.init()
     pollDonations()
     getContributors()
+    getTop()
 
     routing {
         get("/") {
