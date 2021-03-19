@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 val ktorVersion: String by project
 val kotlinVersion: String by project
@@ -55,6 +56,12 @@ tasks.withType<KotlinCompile>().configureEach {
         useIR = true
     }
 }
+tasks.withType<ShadowJar> {
+    archiveBaseName.set("dankchat-api")
+    archiveClassifier.set("")
+    archiveVersion.set("")
+}
+
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
     jvmTarget = "1.8"
