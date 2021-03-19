@@ -1,9 +1,11 @@
 package utils
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
 import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Path
@@ -17,7 +19,7 @@ fun File.asWatchFlow(): Flow<File> = flow {
 
     emit(this@asWatchFlow)
 
-    while (true) {
+    while (currentCoroutineContext().isActive) {
         val monitor = watchService.take()
         val dirPath = monitor.watchable() as? Path ?: break
         monitor.pollEvents().forEach {

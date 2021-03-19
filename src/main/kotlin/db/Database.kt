@@ -19,7 +19,7 @@ object Database {
     private fun hikari(): HikariDataSource {
         val config = HikariConfig().apply {
             driverClassName = "org.h2.Driver"
-            jdbcUrl = "jdbc:h2:file:/opt/dankchat-api/db"
+            jdbcUrl = "jdbc:h2:file:~/opt/dankchat-api/db"
             validate()
         }
         return HikariDataSource(config)
