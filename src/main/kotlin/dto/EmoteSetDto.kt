@@ -15,5 +15,7 @@ data class EmoteSetDto(
 @Serializable
 data class EmoteDto(
     val code: String,
-    val id: String
+    val id: String,
+    val type: String?,
+    val assetType: String?
 )

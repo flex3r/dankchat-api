@@ -1,8 +1,5 @@
 import db.User
-import dto.BadgeDto
-import dto.ChannelDto
-import dto.DonationDocDto
-import dto.DonationsDto
+import dto.*
 import io.ktor.application.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -12,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.transactions.transaction
 import utils.asWatchFlow
 import utils.getOrNull
@@ -20,7 +19,7 @@ import java.io.File
 
 fun Route.getBadgesRoute() {
     get("/badges") {
-        val badges = transaction { getAllBadges() }
+        val badges = transaction { allBadges }
         call.respond(badges)
     }
 }
@@ -30,22 +29,26 @@ const val SE_CHANNEL_URL = "https://api.streamelements.com/kappa/v2/channels/"
 
 val contributors = mutableListOf<String>()
 val top = mutableListOf<String>()
+val danks = mutableListOf<BadgeDto>()
 
-fun getAllBadges(): List<BadgeDto> = getDefaultBadges().plus(getSupporters())
+val allBadges: List<BadgeDto>
+    get() = danks + defaultBadges + supporters
 
-fun getDefaultBadges(): List<BadgeDto> = listOf(
-    BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", listOf("73697410")),
-    BadgeDto("DankChat Top Supporter", "https://flxrs.com/dankchat/badges/top.png", top),
-    BadgeDto("DankChat Contributor", "https://flxrs.com/dankchat/badges/contributor.png", contributors)
-)
+val defaultBadges: List<BadgeDto>
+    get() = listOf(
+        BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", listOf("73697410")),
+        BadgeDto("DankChat Top Supporter", "https://flxrs.com/dankchat/badges/top.png", top),
+        BadgeDto("DankChat Contributor", "https://flxrs.com/dankchat/badges/contributor.png", contributors)
+    )
 
-fun getSupporters(): BadgeDto {
-    val users = User.all().map { it.twitchId }
-    return BadgeDto("DankChat Supporter", "https://flxrs.com/dankchat/badges/dank.png", users)
-}
+val supporters: BadgeDto
+    get() {
+        val users = User.all().map { it.twitchId }
+        return BadgeDto("DankChat Supporter", "https://flxrs.com/dankchat/badges/dank.png", users)
+    }
 
 suspend fun pollDonations(seToken: String) = withContext(Dispatchers.IO) {
-    timer(5 * 60 * 1000) {
+    timer(5 * 60 * 1000L) {
         val newDonations = getNewDonations(seToken)
         if (newDonations.isNotEmpty()) {
             logger.info("New donations detected: $newDonations")
@@ -73,7 +76,7 @@ suspend fun getContributors() = withContext(Dispatchers.IO) {
             val lines = file.readLines()
             contributors.clear()
             contributors.addAll(lines)
-            logger.debug("Detected contributor list change: $contributors")
+            logger.info("Detected contributor list change: $contributors")
         }
 }
 
@@ -87,7 +90,24 @@ suspend fun getTop() = withContext(Dispatchers.IO) {
             val lines = file.readLines()
             top.clear()
             top.addAll(lines)
-            logger.debug("Detected top list change: $top")
+            logger.info("Detected top list change: $top")
+        }
+}
+
+suspend fun getDanks() = withContext(Dispatchers.IO) {
+    val danksFile = File("/opt/dankchat-api/danks.json")
+    if (!danksFile.exists()) return@withContext
+
+    danksFile.asWatchFlow()
+        .catch { logger.error("FileWatcher returned an error: ", it) }
+        .collectLatest { file ->
+            runCatching {
+                val text = file.readText()
+                val parsedDanks = Json.decodeFromString<List<BadgeDto>>(text)
+                danks.clear()
+                danks.addAll(parsedDanks)
+                logger.info("Detected danks list change: $danks")
+            }
         }
 }
 

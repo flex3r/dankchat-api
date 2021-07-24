@@ -12,13 +12,13 @@ val hikariVersion: String by project
 
 plugins {
     application
-    kotlin("jvm") version "1.4.30"
-    kotlin("plugin.serialization") version "1.4.30"
+    kotlin("jvm") version "1.5.20"
+    kotlin("plugin.serialization") version "1.5.20"
     id("com.github.johnrengelman.shadow") version "6.1.0"
 }
 
 group = "com.flxrs"
-version = "1.3"
+version = "1.4"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
     mainClassName = "io.ktor.server.netty.EngineMain"

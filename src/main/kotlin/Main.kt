@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 
 val logger: Logger = LoggerFactory.getLogger("dankchat-api")
 val client = HttpClient {
-    install(UserAgent) { agent = "dankchat-api/1.3" }
+    install(UserAgent) { agent = "dankchat-api/1.4" }
     install(JsonFeature) {
         serializer = KotlinxSerializer(json = Json { ignoreUnknownKeys = true })
     }
@@ -31,7 +31,7 @@ fun Application.main() {
 
     install(CallLogging) { level = Level.INFO }
     install(ContentNegotiation) { json() }
-    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.3") }
+    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.4") }
     install(DropwizardMetrics) {
         Slf4jReporter.forRegistry(registry)
             .outputTo(log)
@@ -45,6 +45,7 @@ fun Application.main() {
     launch { pollDonations(seToken) }
     launch { getContributors() }
     launch { getTop() }
+    launch { getDanks() }
 
     routing {
         get(path = "/") { call.respondText("FeelsDankMan", ContentType.Text.Plain) }
