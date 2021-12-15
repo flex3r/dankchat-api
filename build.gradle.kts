@@ -12,13 +12,13 @@ val hikariVersion: String by project
 
 plugins {
     application
-    kotlin("jvm") version "1.5.20"
-    kotlin("plugin.serialization") version "1.5.20"
-    id("com.github.johnrengelman.shadow") version "6.1.0"
+    kotlin("jvm") version "1.6.10"
+    kotlin("plugin.serialization") version "1.6.10"
+    id("com.github.johnrengelman.shadow") version "7.1.1"
 }
 
 group = "com.flxrs"
-version = "1.4"
+version = "1.5"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
     mainClassName = "io.ktor.server.netty.EngineMain"
@@ -51,11 +51,6 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
 }
 
-tasks.withType<KotlinCompile>().configureEach {
-    kotlinOptions {
-        useIR = true
-    }
-}
 tasks.withType<ShadowJar> {
     archiveBaseName.set("dankchat-api")
     archiveClassifier.set("")
