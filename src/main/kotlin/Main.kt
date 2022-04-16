@@ -1,40 +1,47 @@
 import com.codahale.metrics.Slf4jReporter
 import db.Database
-import io.ktor.application.*
 import io.ktor.client.*
-import io.ktor.client.features.*
-import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.features.json.serializer.*
-import io.ktor.features.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.http.*
-import io.ktor.metrics.dropwizard.*
-import io.ktor.response.*
-import io.ktor.routing.*
-import io.ktor.serialization.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.metrics.dropwizard.*
+import io.ktor.server.plugins.callloging.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.defaultheaders.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.slf4j.event.Level
 import java.util.concurrent.TimeUnit
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation.Plugin as ClientContentNegotiation
 
 val logger: Logger = LoggerFactory.getLogger("dankchat-api")
 val client = HttpClient {
-    install(UserAgent) { agent = "dankchat-api/1.5" }
-    install(JsonFeature) {
-        serializer = KotlinxSerializer(json = Json { ignoreUnknownKeys = true })
+    install(UserAgent) { agent = "dankchat-api/1.6" }
+    install(Logging) {
+        level = LogLevel.INFO
+        filter { !it.url.host.contains("streamelements") }
+    }
+    install(ClientContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })
     }
 }
 
+@Suppress("unused")
 fun Application.main() {
     val seToken: String = environment.config.property("ktor.deployment.seToken").getString()
+    val application = this
 
-    install(CallLogging) { level = Level.INFO }
+    install(CallLogging)
     install(ContentNegotiation) { json() }
-    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.5") }
+    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.6") }
     install(DropwizardMetrics) {
         Slf4jReporter.forRegistry(registry)
-            .outputTo(log)
+            .outputTo(application.log)
             .convertRatesTo(TimeUnit.MINUTES)
             .convertDurationsTo(TimeUnit.MILLISECONDS)
             .build()
@@ -49,10 +56,9 @@ fun Application.main() {
 
     routing {
         get(path = "/") { call.respondText("FeelsDankMan", ContentType.Text.Plain) }
-        getEmoteSetRoute()
+        getEmoteSetRoute(application)
         getBadgesRoute()
     }
 }
 
-fun main(args: Array<String>): Unit =
-    io.ktor.server.netty.EngineMain.main(args)
+fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)

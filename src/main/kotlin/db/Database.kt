@@ -15,7 +15,6 @@ object Database {
         }
     }
 
-
     private fun hikari(): HikariDataSource {
         val config = HikariConfig().apply {
             driverClassName = "org.h2.Driver"
@@ -24,5 +23,4 @@ object Database {
         }
         return HikariDataSource(config)
     }
-
 }

@@ -1,10 +1,10 @@
 import db.User
 import dto.*
-import io.ktor.application.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -132,15 +132,17 @@ suspend fun getNewDonations(seToken: String): List<Triple<String, String, String
     return donations.distinctBy { it.donation.user.channel }
         .filter { donation -> savedIds.none { donation.donation.user.channel == it } }
         .mapNotNull {
-            val twitchId = getTwitchId(it.donation.user.channel, seToken) ?: getTwitchIdFallback(it.donation.user.username)
+            val channel = it.donation.user.channel
+            val user = it.donation.user.username
+            val twitchId = getTwitchId(channel, seToken) ?: getTwitchIdFallback(user)
             if (twitchId == null) {
-                logger.error("Failed to get twitch id of channel ${it.donation.user.channel}, user ${it.donation.user.username}")
+                logger.error("Failed to get twitch id of channel ${channel}, user ${user}")
                 return@mapNotNull null
             }
 
             Triple(
-                it.donation.user.channel,
-                it.donation.user.username,
+                channel,
+                user,
                 twitchId
             )
         }

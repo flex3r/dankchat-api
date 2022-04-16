@@ -1,9 +1,9 @@
 package utils
 
-import io.ktor.client.HttpClient
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.get
-import io.ktor.util.error
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -12,9 +12,9 @@ val logger: Logger = LoggerFactory.getLogger("dankchat-api")
 
 suspend inline fun <reified T> HttpClient.getOrNull(url: String, block: HttpRequestBuilder.() -> Unit = {}): T? {
     return try {
-        get<T>(url, block)
+        get(url) { block() }.body<T>()
     } catch (t: Throwable) {
-        logger.error(t.message)
+        logger.error("Request $url failed", t)
         null
     }
 }
@@ -26,8 +26,8 @@ fun CoroutineScope.timer(interval: Long, action: suspend TimerScope.() -> Unit):
         while (true) {
             try {
                 action(scope)
-            } catch (ex: Exception) {
-                logger.error(ex)
+            } catch (t: Throwable) {
+                logger.error(t)
             }
 
             if (scope.isCanceled) {
