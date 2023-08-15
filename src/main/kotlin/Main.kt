@@ -21,7 +21,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation.Plugin as Cl
 
 val logger: Logger = LoggerFactory.getLogger("dankchat-api")
 val client = HttpClient {
-    install(UserAgent) { agent = "dankchat-api/1.6" }
+    install(UserAgent) { agent = "dankchat-api/1.7" }
     install(Logging) {
         level = LogLevel.INFO
         filter { !it.url.host.contains("streamelements") }
@@ -38,7 +38,7 @@ fun Application.main() {
 
     install(CallLogging)
     install(ContentNegotiation) { json() }
-    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.6") }
+    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.7") }
     install(DropwizardMetrics) {
         Slf4jReporter.forRegistry(registry)
             .outputTo(application.log)
@@ -53,6 +53,7 @@ fun Application.main() {
     launch { getContributors() }
     launch { getTop() }
     launch { getDanks() }
+    launch { getOptouts() }
 
     routing {
         get(path = "/") { call.respondText("FeelsDankMan", ContentType.Text.Plain) }

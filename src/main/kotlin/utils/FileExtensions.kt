@@ -2,16 +2,13 @@ package utils
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds
 
-@Suppress("BlockingMethodInNonBlockingContext")
 fun File.asWatchFlow(): Flow<File> = flow {
     val watchService = FileSystems.getDefault().newWatchService()
     val path = parentFile.toPath()
@@ -35,3 +32,14 @@ fun File.asWatchFlow(): Flow<File> = flow {
         }
     }
 }.flowOn(Dispatchers.IO)
+
+suspend fun File.watch(onFileChanged: (File) -> Unit) {
+    if (!exists()) {
+        return
+    }
+    asWatchFlow()
+        .catch { logger.error("FileWatcher returned an error: ", it) }
+        .collectLatest { file ->
+            runCatching { onFileChanged(file) }
+        }
+}

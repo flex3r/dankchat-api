@@ -9,12 +9,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.transactions.transaction
 import utils.asWatchFlow
 import utils.getOrNull
 import utils.timer
+import utils.watch
 import java.io.File
 
 fun Route.getBadgesRoute() {
@@ -26,10 +26,12 @@ fun Route.getBadgesRoute() {
 
 const val SE_TIPS_URL = "https://api.streamelements.com/kappa/v2/tips/5b144fc91a5cbe3a3a920871"
 const val SE_CHANNEL_URL = "https://api.streamelements.com/kappa/v2/channels/"
-const val IVR_V2_TWITCH_USER_URL = "https://api.ivr.fi/v2/twitch/user/"
+const val IVR_V2_TWITCH_USER_URL = "https://api.ivr.fi/v2/twitch/user"
 
+val gold = listOf("73697410")
 val contributors = mutableListOf<String>()
 val top = mutableListOf<String>()
+val optouts = mutableListOf<String>()
 val danks = mutableListOf<BadgeDto>()
 
 val allBadges: List<BadgeDto>
@@ -37,7 +39,7 @@ val allBadges: List<BadgeDto>
 
 val defaultBadges: List<BadgeDto>
     get() = listOf(
-        BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", listOf("73697410")),
+        BadgeDto("DankChat Developer", "https://flxrs.com/dankchat/badges/gold.png", gold),
         BadgeDto("DankChat Top Supporter", "https://flxrs.com/dankchat/badges/top.png", top),
         BadgeDto("DankChat Contributor", "https://flxrs.com/dankchat/badges/contributor.png", contributors)
     )
@@ -47,6 +49,7 @@ val supporters: BadgeDto
         val users = User.all()
             .map { it.twitchId }
             .filter { it.isNotBlank() }
+            .filter { it !in optouts }
 
         return BadgeDto("DankChat Supporter", "https://flxrs.com/dankchat/badges/dank.png", users)
     }
@@ -71,17 +74,12 @@ suspend fun pollDonations(seToken: String) = withContext(Dispatchers.IO) {
 }
 
 suspend fun getContributors() = withContext(Dispatchers.IO) {
-    val contributorsFile = File("/opt/dankchat-api/contributors.txt")
-    if (!contributorsFile.exists()) return@withContext
-
-    contributorsFile.asWatchFlow()
-        .catch { logger.error("FileWatcher returned an error: ", it) }
-        .collectLatest { file ->
-            val lines = file.readLines()
-            contributors.clear()
-            contributors.addAll(lines)
-            logger.info("Detected contributor list change: $contributors")
-        }
+    File("/opt/dankchat-api/contributors.txt").watch {
+        val lines = it.readLines()
+        contributors.clear()
+        contributors.addAll(lines)
+        logger.info("Detected contributor list change: $contributors")
+    }
 }
 
 suspend fun getTop() = withContext(Dispatchers.IO) {
@@ -99,20 +97,22 @@ suspend fun getTop() = withContext(Dispatchers.IO) {
 }
 
 suspend fun getDanks() = withContext(Dispatchers.IO) {
-    val danksFile = File("/opt/dankchat-api/danks.json")
-    if (!danksFile.exists()) return@withContext
+    File("/opt/dankchat-api/danks.json").watch {
+        val text = it.readText()
+        val parsedDanks = Json.decodeFromString<List<BadgeDto>>(text)
+        danks.clear()
+        danks.addAll(parsedDanks)
+        logger.info("Detected danks list change: $danks")
+    }
+}
 
-    danksFile.asWatchFlow()
-        .catch { logger.error("FileWatcher returned an error: ", it) }
-        .collectLatest { file ->
-            runCatching {
-                val text = file.readText()
-                val parsedDanks = Json.decodeFromString<List<BadgeDto>>(text)
-                danks.clear()
-                danks.addAll(parsedDanks)
-                logger.info("Detected danks list change: $danks")
-            }
-        }
+suspend fun getOptouts() = withContext(Dispatchers.IO) {
+    File("/opt/dankchat-api/optouts.txt").watch {
+        val lines = it.readLines()
+        optouts.clear()
+        optouts.addAll(lines)
+        logger.info("Detected opt-outs list change")
+    }
 }
 
 suspend fun getNewDonations(seToken: String): List<Triple<String, String, String>> {
@@ -136,7 +136,11 @@ suspend fun getNewDonations(seToken: String): List<Triple<String, String, String
             val user = it.donation.user.username
             val twitchId = getTwitchId(channel, seToken) ?: getTwitchIdFallback(user)
             if (twitchId == null) {
-                logger.error("Failed to get twitch id of channel ${channel}, user ${user}")
+                logger.error("Failed to get twitch id of channel ${channel}, user $user")
+                return@mapNotNull null
+            }
+
+            if (twitchId in optouts) {
                 return@mapNotNull null
             }
 
@@ -165,7 +169,8 @@ suspend fun getTwitchId(channelId: String, seToken: String): String? {
 }
 
 suspend fun getTwitchIdFallback(channel: String): String? {
-    return client.getOrNull<IvrTwitchUserDto>("$IVR_V2_TWITCH_USER_URL$channel") {
+    return client.getOrNull<List<IvrTwitchUserDto>>(IVR_V2_TWITCH_USER_URL) {
+        parameter("login", channel)
         accept(ContentType.Application.Json)
-    }?.id
+    }?.firstOrNull()?.id
 }

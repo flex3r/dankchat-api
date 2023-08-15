@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 val ktorVersion: String by project
@@ -12,15 +11,19 @@ val hikariVersion: String by project
 
 plugins {
     application
-    kotlin("jvm") version "1.6.20"
-    kotlin("plugin.serialization") version "1.6.20"
-    id("com.github.johnrengelman.shadow") version "7.1.1"
+    kotlin("jvm") version "1.9.0"
+    kotlin("plugin.serialization") version "1.9.0"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.flxrs"
-version = "1.6"
+version = "1.7"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 repositories {
@@ -60,13 +63,4 @@ tasks.withType<ShadowJar> {
     manifest {
         attributes(Pair("Main-Class", "io.ktor.server.netty.EngineMain"))
     }
-}
-
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "11"
-}
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "11"
 }
