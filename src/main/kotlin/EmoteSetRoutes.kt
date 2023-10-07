@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import dto.EmoteDto
 import dto.EmoteSetDto
 import dto.IvrBulkEmoteSetDto
-import dto.IvrEmoteSetDto
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -20,7 +19,9 @@ import kotlinx.coroutines.future.future
 import utils.getOrNull
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toJavaDuration
 
 fun Route.getEmoteSetRoute(scope: CoroutineScope) {
     val asyncCacheLoader = object : AsyncCacheLoader<String, EmoteSetDto> {
@@ -40,39 +41,12 @@ fun Route.getEmoteSetRoute(scope: CoroutineScope) {
         }
     }
 
-    val emoteSetCache: AsyncLoadingCache<String, EmoteSetDto> =
-        Caffeine.newBuilder()
-            .refreshAfterWrite(30, TimeUnit.MINUTES)
-            .buildAsync { key, _ ->
-                scope.future {
-                    getSet(key).also { logger.info("Storing set $key") }
-                }
-            }
-
     val bulkEmoteSetCache: AsyncLoadingCache<String, EmoteSetDto?> =
         Caffeine.newBuilder()
-            .refreshAfterWrite(30, TimeUnit.MINUTES)
+            .refreshAfterWrite(30.minutes.toJavaDuration())
+            .expireAfterAccess(1.days.toJavaDuration())
             .buildAsync(asyncCacheLoader)
 
-    get("/set/{id}") {
-        val id = call.parameters["id"]
-        when {
-            id.isNullOrBlank() -> {
-                logger.warn("Caller: ${call.request.userAgent()} ID parameter null")
-                call.respond(HttpStatusCode.BadRequest, "Invalid set id")
-            }
-            else -> {
-                val set = emoteSetCache.get(id)
-                if (set != null) {
-                    logger.info("Serving set $id")
-                    call.respond(listOf(set))
-                } else {
-                    logger.warn("Cache returned null on set $id")
-                    call.respond(HttpStatusCode.NotFound)
-                }
-            }
-        }
-    }
     get("/sets") {
         val ids = call.request.queryParameters
             .getAll("id")
@@ -85,6 +59,7 @@ fun Route.getEmoteSetRoute(scope: CoroutineScope) {
                 logger.warn("Caller: ${call.request.userAgent()} ID query parameter empty")
                 call.respond(HttpStatusCode.BadRequest, "Invalid parameters")
             }
+
             else -> {
                 val sets = bulkEmoteSetCache.getAll(ids).await()
                 if (sets.isEmpty()) {
@@ -99,10 +74,7 @@ fun Route.getEmoteSetRoute(scope: CoroutineScope) {
     }
 }
 
-const val IVR_EMOTE_SET_URL = "https://api.ivr.fi/twitch/emoteset/"
 const val IVR_V2_EMOTE_SET_URL = "https://api.ivr.fi/v2/twitch/emotes/sets"
-const val TWITCH_EMOTES_EMOTE_SET_URL = "https://api.twitchemotes.com/api/v4/sets?id="
-
 suspend fun getAllSets(ids: Collection<String>): MutableMap<String, EmoteSetDto> = coroutineScope {
     ids.chunked(50)
         .map { getBulkEmoteSetsAsync(it) }
@@ -124,14 +96,3 @@ fun CoroutineScope.getBulkEmoteSetsAsync(ids: List<String>) = async {
         parameter("set_id", ids.joinToString(separator = ","))
     }.orEmpty()
 }
-
-suspend fun getSet(id: String): EmoteSetDto =
-    client.getOrNull<IvrEmoteSetDto>("$IVR_EMOTE_SET_URL$id")?.run {
-        EmoteSetDto(
-            setId = id,
-            channel = channel?.takeIf { it != "qa_TW_Partner" } ?: "Twitch",
-            channelId = channelId ?: "0",
-            tier = tier?.toIntOrNull() ?: 1,
-            emotes = emotes.map { EmoteDto(it.token, it.id, type = null, assetType = null) }
-        )
-    } ?: client.getOrNull<List<EmoteSetDto>>("$TWITCH_EMOTES_EMOTE_SET_URL$id")?.firstOrNull() ?: EmoteSetDto(id)
