@@ -29,7 +29,6 @@ val client = HttpClient(OkHttp) {
     install(UserAgent) { agent = "dankchat-api/1.9" }
     install(Logging) {
         level = LogLevel.INFO
-        filter { !it.url.host.contains("streamelements") }
     }
     install(ClientContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })

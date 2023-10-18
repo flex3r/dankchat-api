@@ -14,7 +14,7 @@ suspend inline fun <reified T> HttpClient.getOrNull(url: String, block: HttpRequ
     return try {
         get(url) { block() }.body<T>()
     } catch (t: Throwable) {
-        logger.error("Request $url failed", t)
+        logger.error("Request $url failed $t", t)
         null
     }
 }
