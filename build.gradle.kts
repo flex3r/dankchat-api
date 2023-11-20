@@ -17,7 +17,7 @@ plugins {
 }
 
 group = "com.flxrs"
-version = "1.9"
+version = "1.10"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 }

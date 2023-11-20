@@ -26,7 +26,7 @@ val client = HttpClient(OkHttp) {
         requestTimeoutMillis = 30_000
         connectTimeoutMillis = 15_000
     }
-    install(UserAgent) { agent = "dankchat-api/1.9" }
+    install(UserAgent) { agent = "dankchat-api/1.10" }
     install(Logging) {
         level = LogLevel.INFO
     }

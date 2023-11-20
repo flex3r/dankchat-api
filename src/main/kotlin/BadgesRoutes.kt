@@ -118,12 +118,12 @@ suspend fun getOptouts() = withContext(Dispatchers.IO) {
 suspend fun getNewDonations(seToken: String): List<Triple<String, String, String>> {
     var offset = 0
     val donations = mutableListOf<DonationDocDto>()
-    val result = getDonationsWithOffset(offset, seToken) ?: return emptyList()
-    donations.addAll(result.docs)
+    val (docs, total) = getDonationsWithOffset(offset, seToken) ?: return emptyList()
+    donations.addAll(docs)
 
-    while (offset + 100 <= result.total) {
+    while (offset + 100 <= total) {
         offset += 100
-        getDonationsWithOffset(offset, seToken)?.let { donations.addAll(it.docs) }
+        getDonationsWithOffset(offset, seToken)?.let { (docs, _) -> donations.addAll(docs) }
     }
 
     val savedIds = transaction {
@@ -152,12 +152,18 @@ suspend fun getNewDonations(seToken: String): List<Triple<String, String, String
         }
 }
 
-suspend fun getDonationsWithOffset(offset: Int = 0, seToken: String): DonationsDto? {
-    return client.getOrNull<DonationsDto>(SE_TIPS_URL) {
+suspend fun getDonationsWithOffset(offset: Int = 0, seToken: String): Pair<List<DonationDocDto>, Int>? {
+    val config: HttpRequestBuilder.() -> Unit = {
         parameter("limit", 100)
         parameter("offset", offset)
         accept(ContentType.Application.Json)
         header("Authorization", "Bearer $seToken")
+    }
+
+    return client.getOrNull<DonationsV2Dto>(SE_TIPS_URL, config)?.let {
+        it.docs to it.totalDocs
+    } ?: client.getOrNull<DonationsDto>(SE_TIPS_URL, config)?.let {
+        it.docs to it.total
     }
 }
 
