@@ -16,6 +16,7 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import utils.logger
+import java.io.File
 import java.util.concurrent.TimeUnit
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
@@ -37,7 +38,8 @@ val client = HttpClient(OkHttp) {
 
 @Suppress("unused")
 fun Application.main() {
-    val seToken: String = environment.config.property("ktor.deployment.seToken").getString()
+    val seToken = environment.config.propertyOrNull("ktor.deployment.seToken")?.getString()
+    val dataDir = File(environment.config.property("ktor.deployment.dataDir").getString())
     val application = this
 
     install(CallLogging)
@@ -52,12 +54,15 @@ fun Application.main() {
             .start(1, TimeUnit.HOURS)
     }
 
-    Database.init()
-    launch { pollDonations(seToken) }
-    launch { watchContributors() }
-    launch { watchTop() }
-    launch { watchDanks() }
-    launch { watchOptouts() }
+    Database.init(dataDir)
+    when (seToken) {
+        null -> logger.warn("SE_TOKEN not set, donation polling disabled")
+        else -> launch { pollDonations(seToken) }
+    }
+    launch { watchContributors(dataDir) }
+    launch { watchTop(dataDir) }
+    launch { watchDanks(dataDir) }
+    launch { watchOptouts(dataDir) }
 
     routing {
         get(path = "/") { call.respondText("FeelsDankMan", ContentType.Text.Plain) }

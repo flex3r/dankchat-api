@@ -79,29 +79,29 @@ suspend fun pollDonations(seToken: String) = withContext(Dispatchers.IO) {
     }
 }
 
-suspend fun watchContributors() = withContext(Dispatchers.IO) {
-    File("/opt/dankchat-api/contributors.txt").watch {
+suspend fun watchContributors(dataDir: File) = withContext(Dispatchers.IO) {
+    dataDir.resolve("contributors.txt").watch {
         contributors = it.readLines()
         logger.info("Detected contributor list change: $contributors")
     }
 }
 
-suspend fun watchTop() = withContext(Dispatchers.IO) {
-    File("/opt/dankchat-api/top.txt").watch {
+suspend fun watchTop(dataDir: File) = withContext(Dispatchers.IO) {
+    dataDir.resolve("top.txt").watch {
         top = it.readLines()
         logger.info("Detected top list change: $top")
     }
 }
 
-suspend fun watchDanks() = withContext(Dispatchers.IO) {
-    File("/opt/dankchat-api/danks.json").watch {
+suspend fun watchDanks(dataDir: File) = withContext(Dispatchers.IO) {
+    dataDir.resolve("danks.json").watch {
         danks = Json.decodeFromString<List<BadgeDto>>(it.readText())
         logger.info("Detected danks list change: $danks")
     }
 }
 
-suspend fun watchOptouts() = withContext(Dispatchers.IO) {
-    File("/opt/dankchat-api/optouts.txt").watch {
+suspend fun watchOptouts(dataDir: File) = withContext(Dispatchers.IO) {
+    dataDir.resolve("optouts.txt").watch {
         optouts = it.readLines()
         logger.info("Detected opt-outs list change")
     }
