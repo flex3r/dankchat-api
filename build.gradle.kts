@@ -1,23 +1,13 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
-val ktorVersion: String by project
-val kotlinVersion: String by project
-val logbackVersion: String by project
-val caffeineVersion: String by project
-val serializationVersion: String by project
-val exposedVersion: String by project
-val h2Version: String by project
-val hikariVersion: String by project
-
 plugins {
     application
-    kotlin("jvm") version "2.4.20"
-    kotlin("plugin.serialization") version "2.4.20"
-    id("com.gradleup.shadow") version "9.6.1"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.shadow)
 }
 
 group = "com.flxrs"
-version = "1.10"
+version = "1.11"
+
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 }
@@ -27,40 +17,42 @@ kotlin {
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
-    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
-    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-server-metrics:$ktorVersion")
-    implementation("io.ktor:ktor-server-auth:$ktorVersion")
-    implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-client-logging:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.call.logging)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.server.default.headers)
+    implementation(libs.ktor.server.metrics)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
-    implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
-    implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation(libs.caffeine)
+    implementation(libs.logback)
 
-    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
-    implementation("com.h2database:h2:$h2Version")
-    implementation("com.zaxxer:HikariCP:$hikariVersion")
-    implementation(kotlin("stdlib-jdk8"))
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.dao)
+    implementation(libs.h2)
+    implementation(libs.hikari)
+
+    testImplementation(libs.kotlin.test)
 }
 
-tasks.withType<ShadowJar> {
+tasks.shadowJar {
     archiveBaseName.set("dankchat-api")
     archiveClassifier.set("")
     archiveVersion.set("")
-    manifest {
-        attributes(Pair("Main-Class", "io.ktor.server.netty.EngineMain"))
-    }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    mergeServiceFiles()
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

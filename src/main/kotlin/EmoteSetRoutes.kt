@@ -17,6 +17,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.future.future
 import utils.getOrNull
+import utils.logger
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import kotlin.time.Duration.Companion.days
@@ -41,7 +42,7 @@ fun Route.getEmoteSetRoute(scope: CoroutineScope) {
         }
     }
 
-    val bulkEmoteSetCache: AsyncLoadingCache<String, EmoteSetDto?> =
+    val bulkEmoteSetCache: AsyncLoadingCache<String, EmoteSetDto> =
         Caffeine.newBuilder()
             .refreshAfterWrite(30.minutes.toJavaDuration())
             .expireAfterAccess(1.days.toJavaDuration())

@@ -2,14 +2,14 @@ package db
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.Database as ExposedDatabase
 
 object Database {
 
     fun init() {
-        Database.connect(hikari())
+        ExposedDatabase.connect(hikari())
         transaction {
             SchemaUtils.create(Users)
         }

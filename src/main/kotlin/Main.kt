@@ -8,25 +8,25 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.metrics.dropwizard.*
-import io.ktor.server.plugins.callloging.*
+import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.defaultheaders.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import utils.logger
 import java.util.concurrent.TimeUnit
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation.Plugin as ClientContentNegotiation
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
-val logger: Logger = LoggerFactory.getLogger("dankchat-api")
+const val VERSION = "1.11"
+
 val client = HttpClient(OkHttp) {
     install(HttpTimeout) {
         requestTimeoutMillis = 30_000
         connectTimeoutMillis = 15_000
     }
-    install(UserAgent) { agent = "dankchat-api/1.10" }
+    install(UserAgent) { agent = "dankchat-api/$VERSION" }
     install(Logging) {
         level = LogLevel.INFO
     }
@@ -42,7 +42,7 @@ fun Application.main() {
 
     install(CallLogging)
     install(ContentNegotiation) { json() }
-    install(DefaultHeaders) { header("User-Agent", "dankchat-api/1.8") }
+    install(DefaultHeaders) { header(HttpHeaders.Server, "dankchat-api/$VERSION") }
     install(DropwizardMetrics) {
         Slf4jReporter.forRegistry(registry)
             .outputTo(application.log)
