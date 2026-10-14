@@ -2,6 +2,8 @@ import db.User
 import dto.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.server.plugins.conditionalheaders.*
+import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
@@ -13,11 +15,23 @@ import utils.logger
 import utils.timer
 import utils.watch
 import java.io.File
+import java.security.MessageDigest
+import java.util.HexFormat
 
 fun Route.getBadgesRoute() {
-    get("/badges") {
-        val badges = transaction { allBadges }
-        call.respond(badges)
+    route("/badges") {
+        install(CORS) {
+            anyHost()
+        }
+        install(ConditionalHeaders)
+        get {
+            val badges = Json.encodeToString(transaction { allBadges })
+            val hash = MessageDigest.getInstance("SHA-256").digest(badges.toByteArray())
+            call.response.etag("\"${HexFormat.of().formatHex(hash)}\"")
+            call.response.cacheControl(CacheControl.NoCache(CacheControl.Visibility.Public))
+            call.respondText(badges, ContentType.Application.Json)
+        }
+        options { }
     }
 }
 

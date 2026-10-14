@@ -25,6 +25,8 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.call.logging)
     implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.server.conditional.headers)
+    implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.default.headers)
     implementation(libs.ktor.server.metrics)
     implementation(libs.ktor.client.core)
@@ -42,6 +44,7 @@ dependencies {
     implementation(libs.h2)
     implementation(libs.hikari)
 
+    testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test)
 }
 

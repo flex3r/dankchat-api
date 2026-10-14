@@ -1,9 +1,22 @@
 import db.User
+import io.ktor.client.plugins.cache.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.routing.*
+import io.ktor.server.testing.*
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class BadgesRoutesTest {
 
@@ -39,5 +52,92 @@ class BadgesRoutesTest {
 
         val users = transaction { User.all().map { it.twitchId to it.name } }
         assertEquals(listOf("1" to "existing", "2" to "new"), users)
+    }
+
+    @Test
+    fun `badges are served with cors and cache headers`() = testApplication {
+        application {
+            install(ContentNegotiation) { json() }
+            routing { getBadgesRoute() }
+        }
+
+        val response = client.get("/badges") {
+            header(HttpHeaders.Origin, "https://example.com")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
+        assertNull(response.headers[HttpHeaders.AccessControlAllowCredentials])
+        assertEquals("no-cache, public", response.headers[HttpHeaders.CacheControl])
+        assertTrue(response.headers[HttpHeaders.ETag].orEmpty().matches(Regex("\"[0-9a-f]{64}\"")))
+        assertTrue(response.bodyAsText().contains("\"users\":[\"1\"]"))
+    }
+
+    @Test
+    fun `badges revalidate with etag until data changes`() = testApplication {
+        application {
+            routing { getBadgesRoute() }
+        }
+
+        val etag = client.get("/badges").headers[HttpHeaders.ETag]
+        assertNotNull(etag)
+
+        val unchanged = client.get("/badges") {
+            header(HttpHeaders.IfNoneMatch, etag)
+        }
+        assertEquals(HttpStatusCode.NotModified, unchanged.status)
+        assertEquals("", unchanged.bodyAsText())
+
+        transaction {
+            User.new {
+                seChannelId = "se2"
+                twitchId = "2"
+                name = "new"
+            }
+        }
+
+        val changed = client.get("/badges") {
+            header(HttpHeaders.IfNoneMatch, etag)
+        }
+        assertEquals(HttpStatusCode.OK, changed.status)
+        assertNotEquals(etag, changed.headers[HttpHeaders.ETag])
+        assertTrue(changed.bodyAsText().contains("\"users\":[\"1\",\"2\"]"))
+    }
+
+    @Test
+    fun `badges answer cors preflight`() = testApplication {
+        application {
+            routing { getBadgesRoute() }
+        }
+
+        val response = client.options("/badges") {
+            header(HttpHeaders.Origin, "https://example.com")
+            header(HttpHeaders.AccessControlRequestMethod, "GET")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("*", response.headers[HttpHeaders.AccessControlAllowOrigin])
+    }
+
+    @Test
+    fun `caching clients see badge changes on the next request`() = testApplication {
+        application {
+            routing { getBadgesRoute() }
+        }
+        val cachingClient = createClient {
+            install(HttpCache)
+        }
+
+        assertTrue(cachingClient.get("/badges").bodyAsText().contains("\"users\":[\"1\"]"))
+
+        transaction {
+            User.new {
+                seChannelId = "se2"
+                twitchId = "2"
+                name = "new"
+            }
+        }
+
+        assertTrue(cachingClient.get("/badges").bodyAsText().contains("\"users\":[\"1\",\"2\"]"))
     }
 }
