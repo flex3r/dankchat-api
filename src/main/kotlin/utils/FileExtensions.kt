@@ -12,7 +12,7 @@ import java.nio.file.StandardWatchEventKinds
 fun File.asWatchFlow(): Flow<File> = flow {
     val watchService = FileSystems.getDefault().newWatchService()
     val path = parentFile.toPath()
-    path.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY)
+    path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY)
 
     emit(this@asWatchFlow)
 
@@ -35,11 +35,13 @@ fun File.asWatchFlow(): Flow<File> = flow {
 
 suspend fun File.watch(onFileChanged: (File) -> Unit) {
     if (!exists()) {
+        logger.warn("$absolutePath does not exist, not watching it")
         return
     }
     asWatchFlow()
         .catch { logger.error("FileWatcher returned an error: ", it) }
         .collectLatest { file ->
             runCatching { onFileChanged(file) }
+                .onFailure { logger.error("Failed to process change of ${file.absolutePath}", it) }
         }
 }

@@ -54,10 +54,10 @@ fun Application.main() {
 
     Database.init()
     launch { pollDonations(seToken) }
-    launch { getContributors() }
-    launch { getTop() }
-    launch { getDanks() }
-    launch { getOptouts() }
+    launch { watchContributors() }
+    launch { watchTop() }
+    launch { watchDanks() }
+    launch { watchOptouts() }
 
     routing {
         get(path = "/") { call.respondText("FeelsDankMan", ContentType.Text.Plain) }
